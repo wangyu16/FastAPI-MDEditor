@@ -1,0 +1,40 @@
+{
+  // A descriptive name for your development container configuration.
+  "name": "Python 3 & FastAPI Codespace",
+
+  // Specifies the Docker image to use. We're using a pre-built Python 3.11 image from Microsoft.
+  "image": "mcr.microsoft.com/devcontainers/python:3.11-bullseye",
+
+  // Configuration for VS Code when it connects to the container.
+  "customizations": {
+    "vscode": {
+      // A list of VS Code extensions to automatically install in the Codespace.
+      "extensions": [
+        "ms-python.python", // The official Python extension from Microsoft.
+        "ms-python.vscode-pylance", // Provides rich language support (IntelliSense, etc.).
+        "ms-python.black-formatter", // The Black code formatter for consistent styling.
+        "esbenp.prettier-vscode", // A code formatter for frontend files (HTML, CSS, JS).
+        "tamasfe.even-better-toml" // For editing files like pyproject.toml.
+      ],
+      // Default settings to apply inside the VS Code instance.
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.linting.pylintEnabled": true,
+        "python.linting.enabled": true,
+        "editor.formatOnSave": true,
+        "python.formatting.provider": "black"
+      }
+    }
+  },
+
+  // Ports to automatically forward from the container to your local machine.
+  // FastAPI's default port is 8000.
+  "forwardPorts": [8000],
+
+  // A command to run after the container has been created.
+  // This will automatically install all the Python packages listed in your requirements.txt file.
+  "postCreateCommand": "pip install --user -r requirements.txt",
+
+  // The user that commands should be run as inside the container.
+  "remoteUser": "vscode"
+}
