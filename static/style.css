@@ -1,0 +1,88 @@
+/* Simple styling for a better look and feel */
+html, body {
+    font-family: 'Inter', sans-serif;
+    height: 100vh;
+    margin: 0;
+    overflow: hidden;
+}
+.file-item.active {
+    background-color: #3b82f6; /* blue-500 */
+    color: white;
+}
+#editor {
+    resize: none;
+    border: none;
+    outline: none;
+    background-color: #1f2937; /* gray-800 */
+}
+#preview {
+    background-color: #111827; /* gray-900 */
+}
+/* Style for rendered markdown content */
+#preview-content {
+    font-size: 1.2rem;
+    font-family: times, serif;
+}
+
+#preview-content h1 {
+    font-size: 2em;
+    font-family: sans-serif;
+    padding: 0.5em 0;
+}
+
+#preview-content h2 {
+    font-size: 1.5em;
+    font-family: sans-serif;
+    color: #06a406;
+    padding: 0%;
+}
+
+#preview-content h3 {
+    font-size: 1.25em;
+    font-family: sans-serif;
+    padding: 0%;
+}
+
+#preview-content p {
+    color: #d1d5db; /* gray-300 */
+    line-height: 1.6;
+    margin: 0.5em 0;
+}
+
+#preview-content h1, #preview-content h2, #preview-content h3 {
+    border-bottom: 1px solid #4b5563; /* gray-600 */
+    padding-bottom: 0.3em;
+}
+#preview-content code {
+    background-color: #374151; /* gray-700 */
+    padding: 0.2em 0.4em;
+    border-radius: 3px;
+}
+#preview-content pre {
+    background-color: #1f2937; /* gray-800 */
+    padding: 1em;
+    border-radius: 5px;
+    overflow-x: auto;
+}
+#preview-content blockquote {
+    border-left: 4px solid #6b7280; /* gray-500 */
+    padding-left: 1em;
+    color: #d1d5db; /* gray-300 */
+    margin-left: 0;
+}
+/* Fix for lists and links */
+#preview-content ul {
+    list-style-type: disc;
+    padding-left: 2em;
+}
+#preview-content ol {
+    list-style-type: decimal;
+    padding-left: 2em;
+}
+#preview-content a {
+    color: #60a5fa; /* blue-400 */
+    text-decoration: underline;
+}
+#preview-content a:hover {
+    color: #93c5fd; /* blue-300 */
+}

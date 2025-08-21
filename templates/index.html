@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Markdown Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Link to the external stylesheet -->
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Marked.js for Markdown to HTML conversion (v4.x) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@4.3.0/marked.min.js"></script>  
+    <!-- KaTeX for Math & Chemistry Rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <!-- mhchem extension for KaTeX -->
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/mhchem.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+</head>
+<body class="bg-gray-900 text-gray-200 flex h-screen">
+
+    <!-- File Management Panel (Left) -->
+    <div id="file-panel" class="w-1/5 bg-gray-800 p-4 flex flex-col h-full overflow-y-auto">
+        <h2 class="text-xl font-bold mb-4">My Notes</h2>
+        <div id="file-list" class="flex-grow">
+            <!-- File list will be populated by JavaScript -->
+        </div>
+        <div class="mt-4">
+            <input type="text" id="new-filename" placeholder="new-note.md" class="w-full bg-gray-700 p-2 rounded mb-2 text-white placeholder-gray-400">
+            <button id="new-file-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-2">
+                + New File
+            </button>
+            <button id="delete-file-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded disabled:bg-red-800 disabled:cursor-not-allowed" disabled>
+                Delete Selected File
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Editor and Preview Area -->
+    <div class="flex-grow flex flex-col h-full">
+        <!-- Header for current file -->
+        <div class="bg-gray-800 p-2 text-center border-l border-gray-700">
+            <span id="current-filename" class="font-mono">No file selected.</span>
+            <span id="save-status" class="ml-4 text-green-400 opacity-0 transition-opacity duration-500">Saved!</span>
+        </div>
+        <div class="flex flex-grow h-[calc(100%-40px)]">
+            <!-- Markdown Editor (Middle) -->
+            <div class="w-1/2 h-full border-l border-r border-gray-700">
+                <textarea id="editor" class="w-full h-full p-4 text-lg" placeholder="Select a file or create a new one to start writing..."></textarea>
+            </div>
+            <!-- Live Preview (Right) -->
+            <div id="preview" class="w-1/2 h-full p-4 overflow-y-auto">
+                <div id="preview-content" class="prose prose-invert max-w-none"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const fileList = document.getElementById('file-list');
+        const editor = document.getElementById('editor');
+        const previewContent = document.getElementById('preview-content');
+        const currentFilenameEl = document.getElementById('current-filename');
+        const newFilenameInput = document.getElementById('new-filename');
+        const newFileBtn = document.getElementById('new-file-btn');
+        const deleteFileBtn = document.getElementById('delete-file-btn');
+        const saveStatus = document.getElementById('save-status');
+
+        let currentFile = null;
+        let saveTimeout = null;
+
+        // Configure marked.js
+        marked.setOptions({
+            breaks: false, // Add <br> on single line breaks
+            gfm: true, // Use GitHub Flavored Markdown
+        });
+
+        // --- Core Functions ---
+
+        // Fetch and display the list of files from the backend
+        async function fetchFiles() {
+            try {
+                const response = await fetch('/api/files');
+                if (!response.ok) throw new Error('Failed to fetch files');
+                const data = await response.json();
+                
+                fileList.innerHTML = ''; // Clear existing list
+                data.files.forEach(filename => {
+                    const fileItem = document.createElement('div');
+                    fileItem.textContent = filename;
+                    fileItem.className = 'file-item p-2 rounded cursor-pointer hover:bg-blue-500 hover:text-white transition-colors';
+                    fileItem.onclick = () => loadFile(filename);
+                    fileList.appendChild(fileItem);
+                });
+            } catch (error) {
+                console.error('Error fetching files:', error);
+                fileList.innerHTML = '<p class="text-red-400">Could not load files.</p>';
+            }
+        }
+
+        // Load a specific file's content into the editor
+        async function loadFile(filename) {
+            try {
+                const response = await fetch(`/api/files/${filename}`);
+                if (!response.ok) throw new Error('Failed to load file');
+                const data = await response.json();
+                
+                editor.value = data.content;
+                currentFile = filename;
+                updatePreview();
+                updateActiveFileUI(filename);
+            } catch (error) {
+                console.error('Error loading file:', error);
+                // In a real app, show a more user-friendly message
+                console.error(`Could not load file: ${filename}`);
+            }
+        }
+
+        // Save the current editor content to the backend
+        async function saveFile() {
+            if (!currentFile) return;
+
+            try {
+                const response = await fetch(`/api/files/${currentFile}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: editor.value })
+                });
+                if (!response.ok) throw new Error('Failed to save file');
+                
+                // Show 'Saved!' message
+                saveStatus.classList.remove('opacity-0');
+                setTimeout(() => saveStatus.classList.add('opacity-0'), 2000);
+
+            } catch (error) {
+                console.error('Error saving file:', error);
+                // In a real app, show a more user-friendly message
+                console.error(`Could not save file: ${currentFile}`);
+            }
+        }
+
+        // Create a new empty file
+        async function createNewFile() {
+            let filename = newFilenameInput.value.trim();
+            if (!filename) {
+                // In a real app, show a more user-friendly message
+                console.error('Please enter a filename.');
+                return;
+            }
+            if (!filename.endsWith('.md')) {
+                filename += '.md';
+            }
+
+            try {
+                // Save an empty file to create it on the server
+                const response = await fetch(`/api/files/${filename}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: `# ${filename}\n\n` }) // Start with a title
+                });
+                if (!response.ok) throw new Error('Failed to create file');
+                
+                newFilenameInput.value = ''; // Clear input
+                await fetchFiles(); // Refresh file list
+                await loadFile(filename); // Load the new file
+
+            } catch (error) {
+                console.error('Error creating file:', error);
+                // In a real app, show a more user-friendly message
+                console.error(`Could not create file: ${filename}`);
+            }
+        }
+
+        // Delete the currently selected file
+        async function deleteCurrentFile() {
+            if (!currentFile) return;
+            
+            // In a real app, you MUST use a custom modal for confirmation
+            // instead of the browser's confirm() dialog.
+            // For this prototype, we'll proceed without confirmation.
+
+            try {
+                const response = await fetch(`/api/files/${currentFile}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) throw new Error('Failed to delete file');
+
+                resetEditorState();
+                await fetchFiles();
+
+            } catch (error) {
+                console.error('Error deleting file:', error);
+                // In a real app, show a more user-friendly message
+                console.error(`Could not delete file: ${currentFile}`);
+            }
+        }
+
+
+        // --- UI and Event Handlers ---
+
+        // Update the live preview panel
+        function updatePreview() {
+            previewContent.innerHTML = marked.parse(editor.value);
+            // After rendering markdown, find and render math expressions
+            if (window.renderMathInElement) {
+                renderMathInElement(previewContent, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ]
+                });
+            }
+        }
+
+        // Highlight the currently selected file in the list
+        function updateActiveFileUI(filename) {
+            currentFilenameEl.textContent = filename;
+            deleteFileBtn.disabled = false; // Enable delete button
+            document.querySelectorAll('.file-item').forEach(item => {
+                if (item.textContent === filename) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Reset the editor to its initial state
+        function resetEditorState() {
+            editor.value = '';
+            currentFile = null;
+            currentFilenameEl.textContent = 'No file selected.';
+            deleteFileBtn.disabled = true;
+            updatePreview();
+            // Remove active class from all file items
+            document.querySelectorAll('.file-item').forEach(item => {
+                item.classList.remove('active');
+            });
+        }
+
+        // Auto-save functionality
+        editor.addEventListener('input', () => {
+            updatePreview();
+            // Debounce saving to avoid too many API calls
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(saveFile, 1000); // Save 1 second after user stops typing
+        });
+
+        newFileBtn.addEventListener('click', createNewFile);
+        deleteFileBtn.addEventListener('click', deleteCurrentFile);
+        newFilenameInput.addEventListener('keyup', (event) => {
+            if (event.key === 'Enter') {
+                createNewFile();
+            }
+        });
+
+        // --- Initial Load ---
+        
+        // Fetch files when the page loads
+        document.addEventListener('DOMContentLoaded', fetchFiles);
+
+    </script>
+</body>
+</html>
